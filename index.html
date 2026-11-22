@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="血圧記録">
+<meta name="theme-color" content="#f4f1ec">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<title>血圧記録</title>
+<style>
+  :root {
+    --bg: #f4f1ec;
+    --card: #ffffff;
+    --ink: #222;
+    --sub: #6b6b6b;
+    --line: #ddd6cc;
+    --accent: #b5452f;
+    --sys: #b5452f;
+    --dia: #2f6fb5;
+    --pulse: #4a8a4a;
+    --morning: #d98a1f;
+    --evening: #4b4f9a;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+    -webkit-text-size-adjust: 100%; }
+  body { padding-bottom: calc(72px + env(safe-area-inset-bottom)); }
+  header { padding: calc(12px + env(safe-area-inset-top)) 16px 8px; display: flex; align-items: baseline; justify-content: space-between; }
+  header h1 { font-size: 20px; margin: 0; }
+  main { padding: 0 12px; max-width: 560px; margin: 0 auto; }
+  .view { display: none; }
+  .view.active { display: block; }
+  .card { background: var(--card); border-radius: 14px; padding: 14px; margin-bottom: 12px; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .row > * { flex: 1; }
+  label.small { font-size: 13px; color: var(--sub); display: block; margin-bottom: 4px; }
+  input[type=date], input[type=time], textarea {
+    width: 100%; font-size: 17px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink); font-family: inherit; }
+  textarea { min-height: 64px; resize: vertical; }
+  .seg { display: flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .seg button { flex: 1; border: 0; background: #fff; font-size: 16px; padding: 10px 0; color: var(--ink); font-family: inherit; }
+  .seg button.on { color: #fff; }
+  .seg button.on[data-slot=morning] { background: var(--morning); }
+  .seg button.on[data-slot=evening] { background: var(--evening); }
+  .seg button.on.plain { background: var(--ink); }
+  table.entry { width: 100%; border-collapse: collapse; }
+  table.entry th { font-size: 13px; color: var(--sub); font-weight: normal; padding: 4px 2px; text-align: center; }
+  table.entry th.rowh { text-align: left; width: 4.2em; }
+  table.entry td { padding: 4px 3px; }
+  table.entry input { width: 100%; font-size: 22px; padding: 8px 4px; text-align: center; border: 1px solid var(--line); border-radius: 10px; font-family: inherit; }
+  table.entry input.bad { border-color: var(--accent); background: #fdeeea; }
+  tr.avg td { font-size: 24px; font-weight: bold; text-align: center; padding-top: 8px; }
+  tr.avg th { padding-top: 8px; }
+  .c-sys { color: var(--sys); } .c-dia { color: var(--dia); } .c-pulse { color: var(--pulse); }
+  .msg { color: var(--accent); font-size: 14px; min-height: 1.2em; margin: 6px 0 0; }
+  .btn { display: block; width: 100%; font-size: 18px; padding: 14px; border: 0; border-radius: 12px; background: var(--accent); color: #fff; font-family: inherit; }
+  .btn.sec { background: #fff; color: var(--ink); border: 1px solid var(--line); }
+  .btn.danger { background: #fff; color: var(--accent); border: 1px solid var(--accent); }
+  .btn + .btn { margin-top: 8px; }
+  nav { position: fixed; left: 0; right: 0; bottom: 0; background: #fff; border-top: 1px solid var(--line); display: flex; padding-bottom: env(safe-area-inset-bottom); }
+  nav button { flex: 1; border: 0; background: none; padding: 12px 0 14px; font-size: 14px; color: var(--sub); font-family: inherit; }
+  nav button.on { color: var(--accent); font-weight: bold; }
+  .day { background: var(--card); border-radius: 14px; margin-bottom: 10px; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+  .day h3 { margin: 0; font-size: 14px; color: var(--sub); padding: 8px 14px; border-bottom: 1px solid var(--line); font-weight: normal; }
+  .rec { display: flex; align-items: center; padding: 10px 14px; gap: 10px; border-bottom: 1px solid #f0ece6; }
+  .rec:last-child { border-bottom: 0; }
+  .tag { font-size: 12px; color: #fff; border-radius: 6px; padding: 2px 6px; flex: none; }
+  .tag.morning { background: var(--morning); } .tag.evening { background: var(--evening); }
+  .rec .bp { font-size: 22px; font-weight: bold; flex: none; }
+  .rec .pl { font-size: 14px; color: var(--pulse); flex: none; }
+  .rec .memo { font-size: 13px; color: var(--sub); flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; text-align: right; }
+  .empty { text-align: center; color: var(--sub); padding: 40px 0; }
+  dialog { border: 0; border-radius: 16px; padding: 16px; width: min(92vw, 420px); }
+  dialog::backdrop { background: rgba(0,0,0,.35); }
+  .detail td, .detail th { padding: 6px 4px; text-align: center; font-size: 17px; }
+  .detail th { font-size: 13px; color: var(--sub); font-weight: normal; }
+  .detail tr.avg td { font-size: 20px; }
+  svg text { font-family: inherit; }
+  .legend { display: flex; gap: 14px; font-size: 13px; color: var(--sub); flex-wrap: wrap; margin-top: 6px; }
+  .legend i { display: inline-block; width: 14px; height: 3px; vertical-align: middle; margin-right: 4px; }
+  .ver { text-align: center; color: var(--sub); font-size: 12px; margin: 16px 0; }
+  p.note { font-size: 14px; color: var(--sub); line-height: 1.6; margin: 0 0 10px; }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">記録する</h1>
+</header>
+
+<main>
+  <section id="v-entry" class="view active">
+    <div class="card">
+      <div class="row" style="margin-bottom:10px">
+        <div><label class="small" for="f-date">日付</label><input type="date" id="f-date"></div>
+        <div><label class="small" for="f-time">時刻</label><input type="time" id="f-time"></div>
+      </div>
+      <div class="seg" id="f-slot">
+        <button type="button" data-slot="morning">朝</button>
+        <button type="button" data-slot="evening">夜</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <table class="entry">
+        <thead><tr><th class="rowh"></th><th class="c-sys">最高</th><th class="c-dia">最低</th><th class="c-pulse">脈拍</th></tr></thead>
+        <tbody>
+          <tr><th class="rowh">1回目</th>
+            <td><input id="f-s1" inputmode="numeric" pattern="[0-9]*" enterkeyhint="next" aria-label="1回目 最高血圧"></td>
+            <td><input id="f-d1" inputmode="numeric" pattern="[0-9]*" enterkeyhint="next" aria-label="1回目 最低血圧"></td>
+            <td><input id="f-p1" inputmode="numeric" pattern="[0-9]*" enterkeyhint="next" aria-label="1回目 脈拍"></td></tr>
+          <tr><th class="rowh">2回目</th>
+            <td><input id="f-s2" inputmode="numeric" pattern="[0-9]*" enterkeyhint="next" aria-label="2回目 最高血圧"></td>
+            <td><input id="f-d2" inputmode="numeric" pattern="[0-9]*" enterkeyhint="next" aria-label="2回目 最低血圧"></td>
+            <td><input id="f-p2" inputmode="numeric" pattern="[0-9]*" enterkeyhint="done" aria-label="2回目 脈拍"></td></tr>
+          <tr class="avg"><th class="rowh">平均</th>
+            <td class="c-sys" id="a-s">–</td><td class="c-dia" id="a-d">–</td><td class="c-pulse" id="a-p">–</td></tr>
+        </tbody>
+      </table>
+      <p class="msg" id="f-msg"></p>
+    </div>
+
+    <div class="card">
+      <label class="small" for="f-memo">メモ</label>
+      <textarea id="f-memo" placeholder="体調・薬など"></textarea>
+    </div>
+
+    <button class="btn" id="f-save" type="button">記録する</button>
+    <button class="btn sec" id="f-cancel" type="button" hidden>編集をやめる</button>
+  </section>
+
+  <section id="v-list" class="view"><div id="list"></div></section>
+
+  <section id="v-graph" class="view">
+    <div class="card">
+      <div class="seg" id="g-range" style="margin-bottom:8px">
+        <button type="button" class="plain" data-days="14">2週間</button>
+        <button type="button" class="plain" data-days="30">1か月</button>
+        <button type="button" class="plain" data-days="90">3か月</button>
+      </div>
+      <div class="seg" id="g-slot">
+        <button type="button" data-slot="morning">朝</button>
+        <button type="button" data-slot="evening">夜</button>
+      </div>
+    </div>
+    <div class="card">
+      <div id="graph"></div>
+      <div class="legend">
+        <span><i style="background:var(--sys)"></i>最高（平均）</span>
+        <span><i style="background:var(--dia)"></i>最低（平均）</span>
+        <span><i style="background:var(--pulse)"></i>脈拍（平均）</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="v-data" class="view">
+    <div class="card">
+      <p class="note">記録はこのiPhoneの中だけに保存されています。iPhoneの故障や機種変更、アプリの削除で消えてしまうため、ときどき「控えを書き出す」でファイルに保存してください。</p>
+      <p class="note" id="d-count"></p>
+      <button class="btn" id="d-export" type="button">控えを書き出す</button>
+      <button class="btn sec" id="d-import" type="button">控えから読み込む</button>
+      <input type="file" id="d-file" accept=".json,application/json" hidden>
+      <p class="msg" id="d-msg"></p>
+    </div>
+    <div class="ver" id="ver"></div>
+  </section>
+</main>
+
+<nav>
+  <button type="button" data-view="entry" class="on">記録</button>
+  <button type="button" data-view="list">一覧</button>
+  <button type="button" data-view="graph">グラフ</button>
+  <button type="button" data-view="data">控え</button>
+</nav>
+
+<dialog id="dlg">
+  <div id="dlg-body"></div>
+  <div style="margin-top:12px">
+    <button class="btn" id="dlg-edit" type="button">直す</button>
+    <button class="btn danger" id="dlg-del" type="button">削除する</button>
+    <button class="btn sec" id="dlg-close" type="button">閉じる</button>
+  </div>
+</dialog>
+
+<script>
+const APP_VERSION = '1.0.0';
+const STORE_KEY = 'bp-records-v1';
+const SLOT_LABEL = { morning: '朝', evening: '夜' };
+const LIMITS = { sys: [50, 260], dia: [30, 200], pulse: [30, 220] };
+
+const $ = id => document.getElementById(id);
+
+function loadRecords() {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY)) || []; }
+  catch (e) { return []; }
+}
+function saveRecords(list) {
+  localStorage.setItem(STORE_KEY, JSON.stringify(list));
+}
+let records = loadRecords();
+
+// 1回しか測らなかった項目は、その値をそのまま平均とする
+function avgOf(a, b) {
+  const v = [a, b].filter(x => typeof x === 'number');
+  if (!v.length) return null;
+  return Math.round(v.reduce((s, x) => s + x, 0) / v.length);
+}
+function averages(r) {
+  return {
+    sys: avgOf(r.r1.sys, r.r2.sys),
+    dia: avgOf(r.r1.dia, r.r2.dia),
+    pulse: avgOf(r.r1.pulse, r.r2.pulse),
+  };
+}
+
+function pad(n) { return String(n).padStart(2, '0'); }
+function todayStr(d = new Date()) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
+function nowTime(d = new Date()) { return `${pad(d.getHours())}:${pad(d.getMinutes())}`; }
+function guessSlot(d = new Date()) { return d.getHours() < 15 ? 'morning' : 'evening'; }
+function fmtDate(s) {
+  const [y, m, d] = s.split('-').map(Number);
+  const w = '日月火水木金土'[new Date(y, m - 1, d).getDay()];
+  return `${y}年${m}月${d}日（${w}）`;
+}
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+/* ---------- 入力画面 ---------- */
+let editingId = null;
+let slot = 'morning';
+const FIELDS = ['s1', 'd1', 'p1', 's2', 'd2', 'p2'];
+
+function setSlot(s) {
+  slot = s;
+  document.querySelectorAll('#f-slot button').forEach(b => b.classList.toggle('on', b.dataset.slot === s));
+}
+function readNum(id) {
+  const t = $(id).value.trim().replace(/[０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0));
+  if (t === '') return null;
+  if (!/^\d+$/.test(t)) return NaN;
+  return Number(t);
+}
+function readForm() {
+  return {
+    r1: { sys: readNum('f-s1'), dia: readNum('f-d1'), pulse: readNum('f-p1') },
+    r2: { sys: readNum('f-s2'), dia: readNum('f-d2'), pulse: readNum('f-p2') },
+  };
+}
+// 問題のある入力欄の id と説明を返す
+function validate(r) {
+  const problems = [];
+  const kinds = { s: ['sys', '最高血圧'], d: ['dia', '最低血圧'], p: ['pulse', '脈拍'] };
+  for (const n of [1, 2]) {
+    const rr = r['r' + n];
+    for (const k of ['s', 'd', 'p']) {
+      const [key, name] = kinds[k];
+      const v = rr[key];
+      if (v === null) continue;
+      const [lo, hi] = LIMITS[key];
+      if (Number.isNaN(v) || v < lo || v > hi) problems.push([`f-${k}${n}`, `${n}回目の${name}が範囲外です（${lo}〜${hi}）`]);
+    }
+    const hasS = rr.sys !== null, hasD = rr.dia !== null;
+    if (hasS !== hasD) problems.push([hasS ? `f-d${n}` : `f-s${n}`, `${n}回目は最高と最低を両方入れてください`]);
+    if (hasS && hasD && rr.sys <= rr.dia) problems.push([`f-s${n}`, `${n}回目の最高が最低以下になっています`]);
+    if (rr.pulse !== null && !hasS) problems.push([`f-s${n}`, `${n}回目は脈拍だけでは記録できません`]);
+  }
+  if (r.r1.sys === null && r.r2.sys === null) problems.push(['f-s1', '血圧を1回分以上入れてください']);
+  return problems;
+}
+function refreshAverage() {
+  const r = readForm();
+  const clean = x => (typeof x === 'number' && !Number.isNaN(x)) ? x : null;
+  const a = {
+    sys: avgOf(clean(r.r1.sys), clean(r.r2.sys)),
+    dia: avgOf(clean(r.r1.dia), clean(r.r2.dia)),
+    pulse: avgOf(clean(r.r1.pulse), clean(r.r2.pulse)),
+  };
+  $('a-s').textContent = a.sys ?? '–';
+  $('a-d').textContent = a.dia ?? '–';
+  $('a-p').textContent = a.pulse ?? '–';
+  FIELDS.forEach(f => $('f-' + f).classList.remove('bad'));
+  $('f-msg').textContent = '';
+}
+function resetForm() {
+  editingId = null;
+  const now = new Date();
+  $('f-date').value = todayStr(now);
+  $('f-time').value = nowTime(now);
+  setSlot(guessSlot(now));
+  FIELDS.forEach(f => $('f-' + f).value = '');
+  $('f-memo').value = '';
+  $('f-save').textContent = '記録する';
+  $('f-cancel').hidden = true;
+  refreshAverage();
+}
+function fillForm(rec) {
+  editingId = rec.id;
+  $('f-date').value = rec.date;
+  $('f-time').value = rec.time || '';
+  setSlot(rec.slot);
+  const v = x => (x === null || x === undefined) ? '' : x;
+  $('f-s1').value = v(rec.r1.sys); $('f-d1').value = v(rec.r1.dia); $('f-p1').value = v(rec.r1.pulse);
+  $('f-s2').value = v(rec.r2.sys); $('f-d2').value = v(rec.r2.dia); $('f-p2').value = v(rec.r2.pulse);
+  $('f-memo').value = rec.memo || '';
+  $('f-save').textContent = 'この内容で直す';
+  $('f-cancel').hidden = false;
+  refreshAverage();
+}
+function onSave() {
+  const r = readForm();
+  const problems = validate(r);
+  refreshAverage();
+  if (problems.length) {
+    problems.forEach(([id]) => $(id).classList.add('bad'));
+    $('f-msg').textContent = problems[0][1];
+    return;
+  }
+  const date = $('f-date').value;
+  if (!date) { $('f-msg').textContent = '日付を入れてください'; return; }
+
+  // 1回目が空で2回目だけ入っている場合は、2回目を1回目に詰める
+  if (r.r1.sys === null) { r.r1 = r.r2; r.r2 = { sys: null, dia: null, pulse: null }; }
+
+  const dup = records.find(x => x.date === date && x.slot === slot && x.id !== editingId);
+  if (dup && !confirm(`${fmtDate(date)}の${SLOT_LABEL[slot]}には、すでに記録があります。新しい内容で置き換えますか？`)) return;
+
+  const rec = {
+    id: editingId || (Date.now().toString(36) + Math.random().toString(36).slice(2, 7)),
+    date, slot, time: $('f-time').value || '',
+    r1: r.r1, r2: r.r2,
+    memo: $('f-memo').value.trim(),
+    updatedAt: new Date().toISOString(),
+  };
+  records = records.filter(x => x.id !== rec.id && x !== dup);
+  records.push(rec);
+  saveRecords(records);
+  const a = averages(rec);
+  resetForm();
+  $('f-msg').textContent = '';
+  toast(`記録しました（平均 ${a.sys}/${a.dia}${a.pulse !== null ? '・脈拍 ' + a.pulse : ''}）`);
+}
+
+/* ---------- 一覧 ---------- */
+function sortedRecords() {
+  return records.slice().sort((a, b) =>
+    a.date !== b.date ? (a.date < b.date ? 1 : -1) : (a.slot === b.slot ? 0 : a.slot === 'morning' ? 1 : -1));
+}
+function renderList() {
+  const el = $('list');
+  if (!records.length) { el.innerHTML = '<div class="empty">まだ記録がありません</div>'; return; }
+  const groups = new Map();
+  for (const r of sortedRecords()) {
+    if (!groups.has(r.date)) groups.set(r.date, []);
+    groups.get(r.date).push(r);
+  }
+  let html = '';
+  for (const [date, rs] of groups) {
+    html += `<div class="day"><h3>${fmtDate(date)}</h3>`;
+    for (const r of rs.sort((a, b) => a.slot === 'morning' ? -1 : 1)) {
+      const a = averages(r);
+      html += `<div class="rec" data-id="${esc(r.id)}">
+        <span class="tag ${r.slot}">${SLOT_LABEL[r.slot]}</span>
+        <span class="bp">${a.sys}<span style="color:var(--sub);font-weight:normal">/</span>${a.dia}</span>
+        <span class="pl">${a.pulse !== null ? '脈 ' + a.pulse : ''}</span>
+        <span class="memo">${esc(r.memo || '')}</span></div>`;
+    }
+    html += '</div>';
+  }
+  el.innerHTML = html;
+}
+let dlgId = null;
+function openDetail(id) {
+  const r = records.find(x => x.id === id);
+  if (!r) return;
+  dlgId = id;
+  const a = averages(r);
+  const v = x => (x === null || x === undefined) ? '–' : x;
+  const row = (name, x) => `<tr><th>${name}</th><td class="c-sys">${v(x.sys)}</td><td class="c-dia">${v(x.dia)}</td><td class="c-pulse">${v(x.pulse)}</td></tr>`;
+  $('dlg-body').innerHTML = `
+    <div style="font-size:15px;margin-bottom:8px"><span class="tag ${r.slot}">${SLOT_LABEL[r.slot]}</span>
+      ${fmtDate(r.date)} ${esc(r.time || '')}</div>
+    <table class="detail" style="width:100%;border-collapse:collapse">
+      <tr><th></th><th>最高</th><th>最低</th><th>脈拍</th></tr>
+      ${row('1回目', r.r1)}${row('2回目', r.r2)}
+      <tr class="avg"><th>平均</th><td class="c-sys">${v(a.sys)}</td><td class="c-dia">${v(a.dia)}</td><td class="c-pulse">${v(a.pulse)}</td></tr>
+    </table>
+    ${r.memo ? `<p style="white-space:pre-wrap;margin:10px 0 0">${esc(r.memo)}</p>` : ''}`;
+  $('dlg').showModal();
+}
+
+/* ---------- グラフ ---------- */
+let gDays = 14;
+let gSlot = 'morning';
+function renderGraph() {
+  document.querySelectorAll('#g-range button').forEach(b => b.classList.toggle('on', Number(b.dataset.days) === gDays));
+  document.querySelectorAll('#g-slot button').forEach(b => b.classList.toggle('on', b.dataset.slot === gSlot));
+
+  const end = new Date(); end.setHours(0, 0, 0, 0);
+  const start = new Date(end); start.setDate(start.getDate() - (gDays - 1));
+  const startStr = todayStr(start), endStr = todayStr(end);
+  const pts = records
+    .filter(r => r.slot === gSlot && r.date >= startStr && r.date <= endStr)
+    .map(r => {
+      const [y, m, d] = r.date.split('-').map(Number);
+      return { t: Math.round((new Date(y, m - 1, d) - start) / 86400000), ...averages(r) };
+    })
+    .sort((a, b) => a.t - b.t);
+
+  const W = 340, H = 240, L = 34, R = 8, T = 10, B = 26;
+  if (!pts.length) {
+    $('graph').innerHTML = `<div class="empty">この期間の${SLOT_LABEL[gSlot]}の記録はありません</div>`;
+    return;
+  }
+  const vals = pts.flatMap(p => [p.sys, p.dia, p.pulse]).filter(v => v !== null);
+  const lo = Math.floor((Math.min(...vals) - 5) / 20) * 20;
+  const hi = Math.ceil((Math.max(...vals) + 5) / 20) * 20;
+  const x = t => L + (W - L - R) * (gDays === 1 ? 0.5 : t / (gDays - 1));
+  const y = v => T + (H - T - B) * (1 - (v - lo) / (hi - lo));
+
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="血圧の推移">`;
+  for (let v = lo; v <= hi; v += 20) {
+    s += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="#eee"/>`;
+    s += `<text x="${L - 4}" y="${y(v) + 4}" font-size="10" fill="#888" text-anchor="end">${v}</text>`;
+  }
+  const step = gDays <= 14 ? 2 : gDays <= 30 ? 7 : 14;
+  for (let t = gDays - 1; t >= 0; t -= step) {
+    const d = new Date(start); d.setDate(d.getDate() + t);
+    const anchor = t === gDays - 1 ? 'end' : 'middle';
+    s += `<text x="${x(t)}" y="${H - 8}" font-size="10" fill="#888" text-anchor="${anchor}">${d.getMonth() + 1}/${d.getDate()}</text>`;
+  }
+  const series = [['sys', 'var(--sys)'], ['dia', 'var(--dia)'], ['pulse', 'var(--pulse)']];
+  for (const [k, color] of series) {
+    const ps = pts.filter(p => p[k] !== null);
+    if (!ps.length) continue;
+    const dash = k === 'pulse' ? ' stroke-dasharray="4 3"' : '';
+    s += `<polyline fill="none" stroke="${color}" stroke-width="2"${dash} points="${ps.map(p => `${x(p.t)},${y(p[k])}`).join(' ')}"/>`;
+    for (const p of ps) s += `<circle cx="${x(p.t)}" cy="${y(p[k])}" r="${gDays > 30 ? 2 : 3}" fill="${color}"/>`;
+  }
+  s += '</svg>';
+  $('graph').innerHTML = s;
+}
+
+/* ---------- 控え ---------- */
+function renderData() {
+  $('d-count').textContent = `いま保存されている記録：${records.length}件`;
+  $('ver').textContent = `ver ${APP_VERSION}`;
+}
+async function exportData() {
+  const body = JSON.stringify({ app: 'bp-record', version: APP_VERSION, exportedAt: new Date().toISOString(), records }, null, 1);
+  const name = `血圧記録_${todayStr().replace(/-/g, '')}.json`;
+  const file = new File([body], name, { type: 'application/json' });
+  // iPhoneでは共有シートから「ファイルに保存」できるほうが確実
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file] }); $('d-msg').textContent = ''; return; }
+    catch (e) { if (e.name === 'AbortError') return; }
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(file);
+  a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+function isValidRecord(r) {
+  const okR = x => x && typeof x === 'object';
+  return r && typeof r.id === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(r.date) &&
+    (r.slot === 'morning' || r.slot === 'evening') && okR(r.r1) && okR(r.r2);
+}
+async function importData(file) {
+  $('d-msg').textContent = '';
+  let data;
+  try { data = JSON.parse(await file.text()); }
+  catch (e) { $('d-msg').textContent = 'このファイルは読み込めません（控えのファイルではないようです）'; return; }
+  const incoming = Array.isArray(data?.records) ? data.records.filter(isValidRecord) : [];
+  if (!incoming.length) { $('d-msg').textContent = 'このファイルには読み込める記録がありません'; return; }
+
+  // 同じ日の同じ時間帯（朝・夜）は、控えの内容で置き換える
+  const key = r => r.date + '|' + r.slot;
+  const inKeys = new Set(incoming.map(key));
+  const replaced = records.filter(r => inKeys.has(key(r))).length;
+  const msg = `控えの記録${incoming.length}件を読み込みます。` +
+    (replaced ? `\nそのうち${replaced}件は、いまある同じ日・同じ時間帯の記録を控えの内容で置き換えます。` : '') +
+    '\nよろしいですか？';
+  if (!confirm(msg)) return;
+  records = records.filter(r => !inKeys.has(key(r))).concat(incoming);
+  saveRecords(records);
+  renderData();
+  toast(`${incoming.length}件を読み込みました`);
+}
+
+/* ---------- 共通 ---------- */
+function toast(text) {
+  const t = document.createElement('div');
+  t.textContent = text;
+  t.style.cssText = 'position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:10px;font-size:15px;z-index:10;max-width:90vw;text-align:center';
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2600);
+}
+const TITLES = { entry: '記録する', list: '一覧', graph: 'グラフ', data: '控え（バックアップ）' };
+function show(view) {
+  document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.id === 'v-' + view));
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.view === view));
+  $('title').textContent = (view === 'entry' && editingId) ? '記録を直す' : TITLES[view];
+  if (view === 'list') renderList();
+  if (view === 'graph') renderGraph();
+  if (view === 'data') renderData();
+  window.scrollTo(0, 0);
+}
+
+document.querySelectorAll('nav button').forEach(b => b.addEventListener('click', () => show(b.dataset.view)));
+document.querySelectorAll('#f-slot button').forEach(b => b.addEventListener('click', () => setSlot(b.dataset.slot)));
+FIELDS.forEach((f, i) => {
+  const el = $('f-' + f);
+  el.addEventListener('input', refreshAverage);
+  el.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); const next = FIELDS[i + 1]; next ? $('f-' + next).focus() : el.blur(); }
+  });
+});
+$('f-save').addEventListener('click', onSave);
+$('f-cancel').addEventListener('click', () => { resetForm(); show('list'); });
+$('list').addEventListener('click', e => { const r = e.target.closest('.rec'); if (r) openDetail(r.dataset.id); });
+$('dlg-close').addEventListener('click', () => $('dlg').close());
+$('dlg-edit').addEventListener('click', () => {
+  const r = records.find(x => x.id === dlgId);
+  $('dlg').close();
+  if (r) { fillForm(r); show('entry'); }
+});
+$('dlg-del').addEventListener('click', () => {
+  const r = records.find(x => x.id === dlgId);
+  if (!r) return;
+  if (!confirm(`${fmtDate(r.date)}の${SLOT_LABEL[r.slot]}の記録を削除します。元に戻せません。よろしいですか？`)) return;
+  records = records.filter(x => x.id !== dlgId);
+  saveRecords(records);
+  $('dlg').close();
+  renderList();
+});
+document.querySelectorAll('#g-range button').forEach(b => b.addEventListener('click', () => { gDays = Number(b.dataset.days); renderGraph(); }));
+document.querySelectorAll('#g-slot button').forEach(b => b.addEventListener('click', () => { gSlot = b.dataset.slot; renderGraph(); }));
+$('d-export').addEventListener('click', exportData);
+$('d-import').addEventListener('click', () => $('d-file').click());
+$('d-file').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if (f) importData(f); });
+
+// iPhoneが空き容量不足のときに勝手に消さないよう依頼する（認められない場合もある）
+if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+
+resetForm();
+gSlot = guessSlot();
+</script>
+</body>
+</html>
